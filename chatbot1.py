@@ -322,5 +322,5 @@ if __name__ == "__main__":
     keep_alive()
     
     # 2. 디스코드 봇 토큰 입력 및 구동
-    BOT_TOKEN = "MTUwOTE5NjIwMDI3NTA4MzM2NA.GPhw5H.E2MeR4gbAvdOzHLS54xvrUK5Id7tW0BrQhPX38"
+    BOT_TOKEN = "MTUwOTE5NjIwMDI3NTA4MzM2NA.G3JAX7.GZex5_K35hrvva1AFuD9xZ9IaW3BzPaGSDzG_E"
     bot.run(BOT_TOKEN)
