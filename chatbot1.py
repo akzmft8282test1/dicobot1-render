@@ -3,16 +3,32 @@ from discord import app_commands
 from discord.ext import commands
 from datetime import timedelta
 import datetime
+import os
+from flask import Flask
+from threading import Thread
 
-# 1. 봇의 기본 설정 및 필수 인텐트 활성화
+# ================= [ Render 배포용 웹 서버 설정 ] =================
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is Alive!"
+
+def run_web_server():
+    # Render는 PORT 환경 변수를 제공하므로 이를 받아와 서버를 엽니다.
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run_web_server)
+    t.start()
+
+# ================= [ 디스코드 봇 기본 설정 ] =================
 intents = discord.Intents.default()
-intents.members = True          # 신규 멤버 감지 및 자동 DM에 필수
-intents.message_content = True  # 메시지 내용 읽기 및 필터링 권한
+intents.members = True          
+intents.message_content = True  
 
-# [5번 기능] 욕설 및 금지어 필터링 리스트
 BAD_WORDS = ["바보", "멍청이", "비속어텍스트"]
-
-# [32번 기능] 서버 채널 구조를 임시 저장할 데이터베이스
 server_backups = {}
 
 class MyBot(commands.Bot):
@@ -25,7 +41,6 @@ class MyBot(commands.Bot):
 
 bot = MyBot()
 
-# [10번 기능 Helper] 실시간 멤버 수 채널 이름 업데이트 함수
 async def update_member_count_channel(guild: discord.Guild):
     for channel in guild.voice_channels:
         if "전체 멤버:" in channel.name:
@@ -59,7 +74,7 @@ async def send_msg(interaction: discord.Interaction, 내용: str):
     await interaction.channel.send(내용)
     await interaction.response.send_message("✅ 메시지를 전송했습니다.", ephemeral=True)
 
-# ================= [ 기존 기능 3: 자동 DM (신규 유저 환영) ] =================
+# ================= [ 기존 기능 3: 자동 DM ] =================
 @bot.event
 async def on_member_join(member: discord.Member):
     try:
@@ -85,7 +100,7 @@ async def target_dm(interaction: discord.Interaction, 유저: discord.User, 내�
     except discord.Forbidden:
         await interaction.response.send_message(f"❌ {유저.mention}님이 DM을 차단해두어 보낼 수 없습니다.", ephemeral=True)
 
-# ================= [ 기존 기능 5: 다른 유저인 척 메시지 (웹훅 기능) ] =================
+# ================= [ 기존 기능 5: 가짜메시지 ] =================
 @bot.tree.command(name="가짜메시지", description="특정 유저의 이름과 프로필 사진을 복사하여 메시지를 보냅니다.")
 @app_commands.describe(유저="흉내낼 유저 선택", 내용="보낼 메시지 내용")
 async def fake_msg(interaction: discord.Interaction, 유저: discord.Member, 내용: str):
@@ -102,7 +117,7 @@ async def fake_msg(interaction: discord.Interaction, 유저: discord.Member, 내
 def get_avatar_url(user):
     return user.avatar.url if user.avatar else user.default_avatar.url
 
-# ================= [ 01. 기존 추가 기능: 채팅 청소 ] =================
+# ================= [ 01. 추가 기능: 채팅 청소 ] =================
 @bot.tree.command(name="청소", description="지정한 개수만큼 현재 채널의 메시지를 일괄 삭제합니다.")
 @app_commands.describe(개수="삭제할 메시지 개수 (1~100)")
 async def clear_chat(interaction: discord.Interaction, 개수: int):
@@ -116,7 +131,7 @@ async def clear_chat(interaction: discord.Interaction, 개수: int):
     deleted = await interaction.channel.purge(limit=개수)
     await interaction.followup.send(f"🗑️ 성공적으로 {len(deleted)}개의 메시지를 삭제했습니다.", ephemeral=True)
 
-# ================= [ 02. 기존 추가 기능: 유저 뮤트 ] =================
+# ================= [ 02. 추가 기능: 유저 뮤트 ] =================
 @bot.tree.command(name="뮤트", description="지정한 시간(분) 동안 유저가 채팅을 치지 못하게 설정합니다.")
 @app_commands.describe(유저="뮤트할 유저", 시간="뮤트 시간 (분 단위)")
 async def mute_user(interaction: discord.Interaction, 유저: discord.Member, 시간: int):
@@ -130,7 +145,7 @@ async def mute_user(interaction: discord.Interaction, 유저: discord.Member, �
     except Exception as e:
         await interaction.response.send_message(f"❌ 뮤트 처리에 실패했습니다: {e}", ephemeral=True)
 
-# ================= [ 05. 기존 추가 기능: 금지어 자동 필터링 ] =================
+# ================= [ 05. 추가 기능: 금지어 자동 필터링 ] =================
 @bot.event
 async def on_message(message: discord.Message):
     if message.author.bot:
@@ -145,7 +160,7 @@ async def on_message(message: discord.Message):
             return
     await bot.process_commands(message)
 
-# ================= [ 06. 기존 추가 기능: 실시간 관리자 로그 ] =================
+# ================= [ 06. 추가 기능: 실시간 관리자 로그 ] =================
 @bot.event
 async def on_message_delete(message: discord.Message):
     if message.author.bot:
@@ -171,7 +186,7 @@ async def on_message_edit(before: discord.Message, after: discord.Message):
         embed.add_field(name="수정 후", value=after.content, inline=False)
         await log_channel.send(embed=embed)
 
-# ================= [ 08. 기존 추가 기능: 서버 정보 조회 ] =================
+# ================= [ 08. 추가 기능: 서버 정보 조회 ] =================
 @bot.tree.command(name="서버정보", description="현재 디스코드 서버의 상세 정보를 보여줍니다.")
 async def server_info(interaction: discord.Interaction):
     guild = interaction.guild
@@ -185,7 +200,7 @@ async def server_info(interaction: discord.Interaction):
     embed.set_footer(text=f"서버 ID: {guild.id}")
     await interaction.response.send_message(embed=embed)
 
-# ================= [ 09. 기존 추가 기능: 유저 정보 조회 ] =================
+# ================= [ 09. 추가 기능: 유저 정보 조회 ] =================
 @bot.tree.command(name="유저정보", description="특정 유저의 가입일 및 권한 상태를 확인합니다.")
 @app_commands.describe(유저="확인할 유저 선택 (비워두면 본인)")
 async def user_info(interaction: discord.Interaction, 유저: discord.Member = None):
@@ -200,7 +215,7 @@ async def user_info(interaction: discord.Interaction, 유저: discord.Member = N
     embed.add_field(name=f"보유 역할 ({len(roles)})", value=" ".join(roles) if roles else "보유 역할 없음", inline=False)
     await interaction.response.send_message(embed=embed)
 
-# ================= [ 14. 기존 추가 기능: 투표 시스템 ] =================
+# ================= [ 14. 추가 기능: 투표 시스템 ] =================
 @bot.tree.command(name="투표", description="간단한 선택지 투표 창을 생성합니다.")
 @app_commands.describe(주제="투표할 주제", 선택지1="첫 번째 선택지", 선택지2="두 번째 선택지", 선택지3="세 번째 선택지 (선택)", 선택지4="네 번째 선택지 (선택)")
 async def create_poll(interaction: discord.Interaction, 주제: str, 선택지1: str, 선택지2: str, 선택지3: str = None, 선택지4: str = None):
@@ -220,7 +235,7 @@ async def create_poll(interaction: discord.Interaction, 주제: str, 선택지1:
     for i in range(count):
         await poll_msg.add_reaction(emoji_list[i])
 
-# ================= [ 32. 기존 추가 기능: 서버 백업 및 복구 ] =================
+# ================= [ 32. 추가 기능: 서버 백업 및 복구 ] =================
 @bot.tree.command(name="백업", description="현재 서버의 카테고리 및 채널 구조를 봇에 백업합니다.")
 async def backup_server(interaction: discord.Interaction):
     if not interaction.user.guild_permissions.administrator:
@@ -267,7 +282,7 @@ async def restore_server(interaction: discord.Interaction):
             else:
                 await guild.create_voice_channel(name=item["name"])
 
-# ================= [ 44. 신규 기능: 채널 잠금/해제 ] =================
+# ================= [ 44. 추가 기능: 채널 잠금/해제 ] =================
 @bot.tree.command(name="잠금", description="현재 채널의 채팅 기능을 잠그거나 해제합니다.")
 @app_commands.describe(상태="채널의 잠금 상태를 선택하세요")
 @app_commands.choices(상태=[
@@ -278,27 +293,22 @@ async def lock_channel(interaction: discord.Interaction, 상태: app_commands.Ch
     if not interaction.user.guild_permissions.manage_channels:
         await interaction.response.send_message("❌ 채널 관리 권한이 없습니다.", ephemeral=True)
         return
-    
     channel = interaction.channel
     overwrite = channel.overwrites_for(interaction.guild.default_role)
-
     if 상태.value == "lock":
         overwrite.send_messages = False
         await channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
-        await interaction.response.send_message("🔒 관리자가 현재 채널을 잠궜습니다. 일반 유저는 더 이상 채팅을 칠 수 없습니다.")
+        await interaction.response.send_message("🔒 관리자가 현재 채널을 잠궜습니다.")
     else:
         overwrite.send_messages = None
         await channel.set_permissions(interaction.guild.default_role, overwrite=overwrite)
-        await interaction.response.send_message("🔓 현재 채널의 잠금이 해제되었습니다. 이제 채팅이 가능합니다.")
+        await interaction.response.send_message("🔓 현재 채널의 잠금이 해제되었습니다.")
 
-# ================= [ 49. 신규 기능: 스포방지 대리 전송 ] =================
+# ================= [ 49. 추가 기능: 스포방지 ] =================
 @bot.tree.command(name="스포방지", description="중요한 스포일러 내용을 숨김처리하여 안전하게 전송합니다.")
 @app_commands.describe(메시지="스포일러 방지 처리할 핵심 내용")
 async def spoiler_msg(interaction: discord.Interaction, 메시지: str):
-    # 유저가 친 원래 명령어 자체를 다른 사람 눈에 안 띄게 숨김 처리하며 전송 시작
     await interaction.response.send_message("✅ 스포방지 메시지를 출력합니다.", ephemeral=True)
-    
-    # 예쁜 박스(임베드) 형태로 스포일러 감옥 전송
     embed = discord.Embed(
         title="⚠️ 스포일러 경고!", 
         description=f"작성자: {interaction.user.mention}\n\n👇 아래 상자를 누르면 내용이 보입니다.\n|| {메시지} ||", 
@@ -306,7 +316,11 @@ async def spoiler_msg(interaction: discord.Interaction, 메시지: str):
     )
     await interaction.channel.send(embed=embed)
 
-# ⚠️ 디스코드 봇 토큰 입력
-BOT_TOKEN = "MTUwOTE5NjIwMDI3NTA4MzM2NA.GPhw5H.E2MeR4gbAvdOzHLS54xvrUK5Id7tW0BrQhPX38"
-
-bot.run(BOT_TOKEN)
+# ================= [ 메인 작동 실행부 ] =================
+if __name__ == "__main__":
+    # 1. 봇이 꺼지지 않도록 가짜 웹서버를 먼저 가동시킵니다.
+    keep_alive()
+    
+    # 2. 디스코드 봇 토큰 입력 및 구동
+    BOT_TOKEN = "MTUwOTE5NjIwMDI3NTA4MzM2NA.GPhw5H.E2MeR4gbAvdOzHLS54xvrUK5Id7tW0BrQhPX38"
+    bot.run(BOT_TOKEN)
