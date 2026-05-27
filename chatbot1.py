@@ -321,6 +321,10 @@ if __name__ == "__main__":
     # 1. 봇이 꺼지지 않도록 가짜 웹서버를 먼저 가동시킵니다.
     keep_alive()
     
-    # 2. 디스코드 봇 토큰 입력 및 구동
-    BOT_TOKEN = "MTUwOTE5NjIwMDI3NTA4MzM2NA.G3JAX7.GZex5_K35hrvva1AFuD9xZ9IaW3BzPaGSDzG_E"
-    bot.run(BOT_TOKEN)
+    # 2. Render 환경 변수(Environment Variables)에서 BOT_TOKEN 구동하기
+    BOT_TOKEN = os.environ.get("BOT_TOKEN")
+    
+    if not BOT_TOKEN:
+        print("[⚠️ 오류] Render 대시보드에 'BOT_TOKEN' 환경 변수가 설정되지 않았습니다!")
+    else:
+        bot.run(BOT_TOKEN)
